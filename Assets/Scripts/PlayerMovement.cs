@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using UnityEngine.SceneManagement;
 
 public class PlayerMovement : MonoBehaviour
 {
@@ -20,6 +21,9 @@ public class PlayerMovement : MonoBehaviour
     float coyoteCounter;          // counts down after leaving ground
     float jumpBufferCounter;      // counts down after press jump
     bool isGrounded;
+    bool isAlive = true;
+    [SerializeField] Vector2 deathKick = new Vector2(10f, 10f);
+    [SerializeField] float levelLoadDelay = 1f;
 
     void Start()
     {
@@ -31,32 +35,36 @@ public class PlayerMovement : MonoBehaviour
 
     void Update()
     {
+        if(!isAlive) { return; }
         // --- Ground check each frame (using your "Ground" layer) ---
-        isGrounded = myFeetCollider.IsTouchingLayers(LayerMask.GetMask("Ground"));  // <-- CHANGED
+        isGrounded = myFeetCollider.IsTouchingLayers(LayerMask.GetMask("Ground"));  
 
         // --- Timers ---
         // Refresh coyote while grounded; otherwise tick down
-        coyoteCounter = isGrounded ? coyoteTime : Mathf.Max(0f, coyoteCounter - Time.deltaTime); // <-- CHANGED
+        coyoteCounter = isGrounded ? coyoteTime : Mathf.Max(0f, coyoteCounter - Time.deltaTime);
         // Tick down jump buffer if set
-        if (jumpBufferCounter > 0f) jumpBufferCounter = Mathf.Max(0f, jumpBufferCounter - Time.deltaTime); // <-- CHANGED
+        if (jumpBufferCounter > 0f) jumpBufferCounter = Mathf.Max(0f, jumpBufferCounter - Time.deltaTime); 
 
         // Try to perform the jump if both timers allow it
-        TryJump(); // <-- CHANGED
+        TryJump(); 
 
         Run();
         FlipSprite();
+        Die();
     }
 
     void OnMove(InputValue value)
     {
+        if(!isAlive) { return; }
         moveInput = value.Get<Vector2>();
     }
 
     void OnJump(InputValue value)
     {
+        if(!isAlive) { return; }
         // Buffer the jump on press; don't require ground here (that defeats coyote time)
-        if (value.isPressed)                                     // <-- CHANGED
-            jumpBufferCounter = jumpBufferTime;                  // <-- CHANGED
+        if (value.isPressed)                              
+            jumpBufferCounter = jumpBufferTime;              
     }
 
     void Run()
@@ -78,13 +86,11 @@ public class PlayerMovement : MonoBehaviour
         }
     }
 
-    // --- New helper: actually performs the jump when conditions are met ---
-    void TryJump()                                               // <-- CHANGED
+    void TryJump()  
     {
-        if (coyoteCounter > 0f && jumpBufferCounter > 0f)        // both windows open? Jump.
+        if (coyoteCounter > 0f && jumpBufferCounter > 0f)  
         {
             // Set Y speed to a fixed jump (feels consistent).
-            // If you prefer your previous style, swap to: += new Vector2(0f, jumpSpeed);
             myRigidbody.linearVelocity = new Vector2(myRigidbody.linearVelocity.x, jumpSpeed);
 
             // Consume both windows so we don't double-trigger.
@@ -92,4 +98,27 @@ public class PlayerMovement : MonoBehaviour
             jumpBufferCounter = 0f;
         }
     }
+
+    void Die()
+    {
+        if(myBodyCollider.IsTouchingLayers(LayerMask.GetMask("Water")))
+        {
+            isAlive = false;
+            myAnimator.SetTrigger("Dying");
+            StartCoroutine(HandleDeath());
+            // myRigidbody.velocity = deathKick;
+            // GetComponent<Rigidbody2D>().velocity = new Vector2(0f, 10f);
+            // FindObjectOfType<GameSession>().ProcessPlayerDeath();
+        }
+    }
+
+    IEnumerator HandleDeath()
+    {
+        yield return new WaitForSecondsRealtime(levelLoadDelay);
+        // Restart the level
+        SceneManager.LoadScene(
+            SceneManager.GetActiveScene().buildIndex
+        );
+    }
+
 }
