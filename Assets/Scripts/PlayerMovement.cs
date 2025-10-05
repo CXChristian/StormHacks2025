@@ -23,7 +23,7 @@ public class PlayerMovement : MonoBehaviour
     bool isGrounded;
     bool isAlive = true;
     [SerializeField] Vector2 deathKick = new Vector2(10f, 10f);
-    [SerializeField] float levelLoadDelay = 1f;
+    [SerializeField] float levelLoadDelay = 0.5f;
 
     void Start()
     {
@@ -113,7 +113,7 @@ public class PlayerMovement : MonoBehaviour
     }
 
     IEnumerator HandleDeath()
-    {
+    {   
         yield return new WaitForSecondsRealtime(levelLoadDelay);
         // Restart the level
         SceneManager.LoadScene(
